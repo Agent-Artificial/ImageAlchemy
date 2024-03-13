@@ -1,0 +1,126 @@
+---
+version: "3.8"
+services:
+  sn26-1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sn26-1
+    shm_size: ${shm_size} # for the shared memory size
+    #env_file:
+    #  - .env
+    environment:
+      - CUDA_VISIBLE_DEVICES=1,1
+    volumes:
+      #- ~/.bittensor/wallets:/app/.bittensor/wallets
+      - ~/.bittensor/wallets:/root/.bittensor/wallets:ro
+      - ./:/app
+      #- /var/run/docker.sock:/var/run/docker.sock #Nuclear option
+    networks:
+      - sn26
+    ports:
+      - ${sn26_1_axon}:${sn26_1_axon}
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    command: 
+      - python
+      - neurons/miners/StableMiner/main.py
+      - --wallet.name=${sn26-coldkey}
+      - --wallet.hotkey=${sn26-1-hotkey}
+      - --netuid=26 
+      - --subtensor.network=local 
+      - --axon.port=${sn26_1_axon}
+      - --logging.debug
+      - --subtensor.chain_endpoint=subtensor-mainnet-lite:9944
+
+  sn26-2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sn26-2
+    shm_size: ${shm_size} # for the shared memory size
+    #env_file:
+    #  - .env
+    environment:
+      - CUDA_VISIBLE_DEVICES=1,1
+    volumes:
+      #- ~/.bittensor/wallets:/app/.bittensor/wallets
+      - ~/.bittensor/wallets:/root/.bittensor/wallets:ro
+      - ./:/app
+      #- /var/run/docker.sock:/var/run/docker.sock #Nuclear option
+    networks:
+      - sn26
+    ports:
+      - ${sn26_2_axon}:${sn26_2_axon}
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    command: 
+      - python
+      - neurons/miners/StableMiner/main.py
+      - --wallet.name=default
+      - --wallet.hotkey=${sn26-2}
+      - --netuid=26 
+      - --subtensor.network=local 
+      - --axon.port=${sn26_1_axon}
+      - --logging.debug
+      - --subtensor.chain_endpoint=subtensor-mainnet-lite:9944      
+
+### Bittensor Subtensor Service ###
+# This is for a local blockchain node.  Means our miners will be on the same network as a blockchain node and thereby communicate super fast
+#
+  mainnet-lite:
+    image: opentensor/subtensor:latest
+    build:
+      context: subtensor/.
+      dockerfile: subtensor/Dockerfile
+      target: subtensor
+    cpu_count: 4
+    mem_limit: 40000000000
+    memswap_limit: 80000000000
+    networks:
+      - sn26    
+    # ports:  #doesn't need to be public
+    #   - "9944:9944"
+    #   - "30333:30333"
+    #   - "9933:9933"
+    expose:  #maybe not needed???
+      - "9944"
+      - "30333"
+      - "9933"
+    environment:
+      - CARGO_HOME=/var/www/node-subtensor/.cargo
+    container_name: subtensor-mainnet-lite
+    volumes:
+      - mainnet-lite-volume:/tmp/blockchain
+    command:
+      - /bin/bash
+      - -c
+      - |
+        node-subtensor \
+          --base-path /tmp/blockchain \
+          --chain raw_spec.json \
+          --rpc-external --rpc-cors all \
+          --ws-external --no-mdns \
+          --ws-max-connections 10000 --in-peers 500 --out-peers 500 \
+          --bootnodes /dns/bootnode.finney.opentensor.ai/tcp/30333/ws/p2p/12D3KooWRwbMb85RWnT8DSXSYMWQtuDwh4LJzndoRrTDotTR5gDC \
+          --sync warp
+
+volumes:
+  mainnet-lite-volume:
+
+networks:
+  sn26:
+    name: sn26
+    #external: true
