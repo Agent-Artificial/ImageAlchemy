@@ -13,3 +13,6 @@ https://docs.google.com/document/d/1FzZe5EskEV0Q6BkOuVkqCrIEexzQZd_134eT74B7hPA/
 
 Validator guide:
 https://docs.google.com/document/d/1gj6WOgjWBfKvYBc82r_lIiHNR_xfIT5me6QFXYgXrSU/edit?usp=sharing
+
+
+git clone --recurse-submodules git@github.com:Agent-Artificial/ImageAlchemy.git

@@ -10,10 +10,14 @@ services:
     #env_file:
     #  - .env
     environment:
-      - CUDA_VISIBLE_DEVICES=1,1
+      # Tried this and it does not work:  1,1
+      # but that's ok since the miner grabs only the first one currently    
+      - CUDA_VISIBLE_DEVICES=1,2
     volumes:
       #- ~/.bittensor/wallets:/app/.bittensor/wallets
-      - ~/.bittensor/wallets:/root/.bittensor/wallets:ro
+      # READ ONLY may be ok here.  Need to test.  Ripped it out when wallets didn't work
+      # but that didn't fix the issue I had
+      - ~/.bittensor/wallets:/root/.bittensor/wallets
       - ./:/app
       #- /var/run/docker.sock:/var/run/docker.sock #Nuclear option
     networks:
@@ -28,16 +32,19 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
+    # The command format below does not APPEAR to work with env vars like ${sn26-1-hotkey}
+    # So I hard coded it for now.  I may have to do that ugly format for the "CMD" here to
+    # get that functionality to work.  Dunno.... Ironically the ${sn26_1_axon} works fine...
     command: 
       - python
       - neurons/miners/StableMiner/main.py
-      - --wallet.name=${sn26-coldkey}
-      - --wallet.hotkey=${sn26-1-hotkey}
+      - --wallet.name=default
+      - --wallet.hotkey=sn26-1-hotkey
       - --netuid=26 
       - --subtensor.network=local 
       - --axon.port=${sn26_1_axon}
       - --logging.debug
-      - --subtensor.chain_endpoint=subtensor-mainnet-lite:9944
+      - --subtensor.chain_endpoint=opentensor-subtensor-lite:9944
 
   sn26-2:
     build:
@@ -48,10 +55,10 @@ services:
     #env_file:
     #  - .env
     environment:
-      - CUDA_VISIBLE_DEVICES=1,1
+      - CUDA_VISIBLE_DEVICES=1,2
     volumes:
       #- ~/.bittensor/wallets:/app/.bittensor/wallets
-      - ~/.bittensor/wallets:/root/.bittensor/wallets:ro
+      - ~/.bittensor/wallets:/root/.bittensor/wallets
       - ./:/app
       #- /var/run/docker.sock:/var/run/docker.sock #Nuclear option
     networks:
@@ -70,12 +77,12 @@ services:
       - python
       - neurons/miners/StableMiner/main.py
       - --wallet.name=default
-      - --wallet.hotkey=${sn26-2}
+      - --wallet.hotkey=sn26-2-hotkey
       - --netuid=26 
       - --subtensor.network=local 
-      - --axon.port=${sn26_1_axon}
+      - --axon.port=${sn26_2_axon}
       - --logging.debug
-      - --subtensor.chain_endpoint=subtensor-mainnet-lite:9944      
+      - --subtensor.chain_endpoint=opentensor-subtensor-lite:9944      
 
 ### Bittensor Subtensor Service ###
 # This is for a local blockchain node.  Means our miners will be on the same network as a blockchain node and thereby communicate super fast
@@ -84,14 +91,14 @@ services:
     image: opentensor/subtensor:latest
     build:
       context: subtensor/.
-      dockerfile: subtensor/Dockerfile
+      dockerfile: Dockerfile
       target: subtensor
     cpu_count: 4
     mem_limit: 40000000000
     memswap_limit: 80000000000
     networks:
       - sn26    
-    # ports:  #doesn't need to be public
+    # ports:  #doesn't need to be public??
     #   - "9944:9944"
     #   - "30333:30333"
     #   - "9933:9933"
@@ -101,7 +108,7 @@ services:
       - "9933"
     environment:
       - CARGO_HOME=/var/www/node-subtensor/.cargo
-    container_name: subtensor-mainnet-lite
+    container_name: opentensor-subtensor-lite
     volumes:
       - mainnet-lite-volume:/tmp/blockchain
     command:
